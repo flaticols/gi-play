@@ -10,9 +10,6 @@ go.work
 go.work.sum
 .idea/
 
-# Monaco editor (bundled locally)
-web/min/
-
 # Debug files
 *.html.bak
 gi-vm-panic.html
