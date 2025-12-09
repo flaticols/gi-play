@@ -1,0 +1,18 @@
+# Binary
+gi-playground
+
+# Database
+snippets.db
+
+# Local development
+.beads/
+go.work
+go.work.sum
+.idea/
+
+# Monaco editor (bundled locally)
+web/min/
+
+# Debug files
+*.html.bak
+gi-vm-panic.html
