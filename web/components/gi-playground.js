@@ -1,5 +1,6 @@
 import { CodeEditor } from './code-editor.js';
 import { OutputPanel } from './output-panel.js';
+import { ExplorePanel } from './explore-panel.js';
 
 const DEFAULT_CODE = `package main
 
@@ -50,7 +51,10 @@ class GiPlayground extends HTMLElement {
             <main class="pg-main">
                 <code-editor id="editor"></code-editor>
                 <div class="pg-gutter"></div>
-                <output-panel id="output"></output-panel>
+                <div class="pg-output-wrapper">
+                    <output-panel id="output"></output-panel>
+                    <explore-panel id="explorer"></explore-panel>
+                </div>
             </main>
 
             <dialog id="share-dialog">
@@ -210,6 +214,14 @@ class GiPlayground extends HTMLElement {
                 overflow: hidden;
             }
 
+            .pg-output-wrapper {
+                position: relative;
+                display: grid;
+                min-height: 0;
+                min-width: 0;
+                overflow: hidden;
+            }
+
             .pg-gutter {
                 background: var(--border);
             }
@@ -347,6 +359,7 @@ class GiPlayground extends HTMLElement {
     setupListeners() {
         this.editor = this.querySelector('#editor');
         this.output = this.querySelector('#output');
+        this.explorer = this.querySelector('#explorer');
         this.runBtn = this.querySelector('#run');
         this.shareBtn = this.querySelector('#share');
         this.dialog = this.querySelector('#share-dialog');
@@ -358,6 +371,11 @@ class GiPlayground extends HTMLElement {
         this.runBtn.addEventListener('click', () => this.run());
         this.shareBtn.addEventListener('click', () => this.share());
         this.editor.addEventListener('run-code', () => this.run());
+
+        // Listen for explore events
+        this.output.addEventListener('open-explorer', (e) => {
+            this.explorer.open(e.detail.sessionID);
+        });
 
         this.dialogClose.addEventListener('click', () => this.dialog.close());
         this.dialog.addEventListener('click', (e) => {
@@ -415,9 +433,11 @@ class GiPlayground extends HTMLElement {
         this.runBtn.disabled = true;
         this.output.clear();
         this.output.showLoading();
+        this.explorer.close();
 
         try {
-            const res = await fetch('/api/run', {
+            // Use run-explore endpoint to enable variable exploration
+            const res = await fetch('/api/run-explore', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code }),

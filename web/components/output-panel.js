@@ -133,6 +133,54 @@ export class OutputPanel extends HTMLElement {
                     font-family: var(--font-sans);
                 }
 
+                .op-explore {
+                    margin-top: 12px;
+                }
+
+                .op-explore-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px 14px;
+                    font-family: var(--font-sans);
+                    font-size: 13px;
+                    font-weight: 500;
+                    background: var(--bg-elevated);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-bright);
+                    border-radius: var(--radius);
+                    cursor: pointer;
+                    transition: all var(--transition);
+                }
+
+                .op-explore-btn:hover {
+                    background: var(--accent);
+                    color: var(--bg-base);
+                    border-color: var(--accent);
+                }
+
+                .op-explore-icon {
+                    font-size: 14px;
+                }
+
+                .op-explore-hint {
+                    margin-top: 12px;
+                    padding: 8px 12px;
+                    font-family: var(--font-sans);
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    background: var(--bg-surface);
+                    border-radius: var(--radius);
+                    border: 1px dashed var(--border);
+                }
+
+                .op-explore-hint code {
+                    font-family: var(--font-mono);
+                    background: var(--bg-base);
+                    padding: 2px 4px;
+                    border-radius: 2px;
+                }
+
                 .op-message {
                     display: flex;
                     align-items: center;
@@ -192,6 +240,24 @@ export class OutputPanel extends HTMLElement {
             `;
         }
 
+        // Add explore button if session available
+        if (result.session_id && result.variables?.length > 0) {
+            html += `
+                <div class="op-explore">
+                    <button class="op-explore-btn" data-session="${result.session_id}">
+                        <span class="op-explore-icon">&#128269;</span>
+                        <span>Explore Variables (${result.variables.length})</span>
+                    </button>
+                </div>
+            `;
+        } else if (!result.error) {
+            html += `
+                <div class="op-explore-hint">
+                    Tip: Use <code>var x = ...</code> at package level to enable variable exploration
+                </div>
+            `;
+        }
+
         html += `
             <div class="op-meta">
                 <span>Executed in ${result.duration_ms}ms</span>
@@ -199,6 +265,17 @@ export class OutputPanel extends HTMLElement {
         </div>`;
 
         this.content.innerHTML = html;
+
+        // Attach explore handler
+        const exploreBtn = this.content.querySelector('.op-explore-btn');
+        if (exploreBtn) {
+            exploreBtn.addEventListener('click', () => {
+                this.dispatchEvent(new CustomEvent('open-explorer', {
+                    bubbles: true,
+                    detail: { sessionID: exploreBtn.dataset.session }
+                }));
+            });
+        }
     }
 
     showMessage(msg) {
