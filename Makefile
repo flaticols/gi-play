@@ -15,6 +15,10 @@ run: build
 dev:
 	go run .
 
+# Watch mode with air (restarts on changes in . and ../gi)
+watch:
+	go tool air
+
 clean:
 	rm -f $(APP_NAME) snippets.db
 
@@ -65,7 +69,7 @@ tidy:
 # Development with local gi
 dev-local:
 	@echo "Creating go.work for local gi development..."
-	@echo "go 1.23" > go.work
+	@echo "go 1.25.5" > go.work
 	@echo "" >> go.work
 	@echo "use (" >> go.work
 	@echo "    ." >> go.work

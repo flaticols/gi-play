@@ -16,3 +16,6 @@ web/min/
 # Debug files
 *.html.bak
 gi-vm-panic.html
+
+# Air
+tmp/
