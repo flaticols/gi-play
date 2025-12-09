@@ -30,11 +30,12 @@ class GiPlayground extends HTMLElement {
         this.innerHTML = `
             <header class="pg-header">
                 <div class="pg-brand">
-                    <span class="pg-logo">gi</span>
+                    <a href="https://github.com/emicklei/gi" target="_blank" class="pg-logo">gi</a>
                     <span class="pg-sep">/</span>
-                    <span class="pg-title">playground</span>
+                    <a href="https://github.com/flaticols/gi-play" target="_blank" class="pg-title">playground</a>
                 </div>
                 <div class="pg-actions">
+                    <span class="pg-version" id="version"></span>
                     <button class="pg-btn" id="share">
                         <span class="pg-btn-text">Share</span>
                     </button>
@@ -116,6 +117,11 @@ class GiPlayground extends HTMLElement {
                 font-weight: 600;
                 font-size: 16px;
                 color: var(--accent);
+                text-decoration: none;
+            }
+
+            .pg-logo:hover {
+                text-decoration: underline;
             }
 
             .pg-sep {
@@ -125,12 +131,24 @@ class GiPlayground extends HTMLElement {
             .pg-title {
                 color: var(--text-secondary);
                 font-size: 14px;
+                text-decoration: none;
+            }
+
+            .pg-title:hover {
+                text-decoration: underline;
             }
 
             /* Actions */
             .pg-actions {
                 display: flex;
-                gap: 8px;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .pg-version {
+                font-family: var(--font-mono);
+                font-size: 11px;
+                color: var(--text-muted);
             }
 
             .pg-btn {
@@ -350,6 +368,21 @@ class GiPlayground extends HTMLElement {
         this.dialog.querySelectorAll('.dialog-copy').forEach(btn => {
             btn.addEventListener('click', () => this.copyInput(btn));
         });
+
+        // Load version
+        this.loadVersion();
+    }
+
+    async loadVersion() {
+        try {
+            const res = await fetch('/api/version');
+            if (res.ok) {
+                const data = await res.json();
+                this.querySelector('#version').textContent = data.gi_version;
+            }
+        } catch (e) {
+            console.error('Failed to load version:', e);
+        }
     }
 
     async loadFromURL() {

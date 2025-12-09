@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -36,6 +37,7 @@ func run(cfg Config) error {
 	mux := http.NewServeMux()
 
 	// API endpoints
+	mux.HandleFunc("GET /api/version", handleVersion)
 	mux.HandleFunc("POST /api/run", handleRun)
 	mux.HandleFunc("POST /api/share", handleShare(snippetStore))
 	mux.HandleFunc("GET /api/s/{id}", handleGet(snippetStore))
@@ -74,6 +76,24 @@ func run(cfg Config) error {
 
 type runRequest struct {
 	Code string `json:"code"`
+}
+
+type versionResponse struct {
+	GiVersion string `json:"gi_version"`
+}
+
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	version := "unknown"
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, dep := range info.Deps {
+			if dep.Path == "github.com/emicklei/gi" {
+				version = dep.Version
+				break
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(versionResponse{GiVersion: version})
 }
 
 func handleRun(w http.ResponseWriter, r *http.Request) {
