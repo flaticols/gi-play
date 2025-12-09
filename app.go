@@ -13,7 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/flaticols/gi-play/internal/explore"
 	"github.com/flaticols/gi-play/internal/sandbox"
+	"github.com/flaticols/gi-play/internal/session"
 	"github.com/flaticols/gi-play/internal/store"
 	"github.com/flaticols/gi-play/web"
 )
@@ -33,14 +35,26 @@ func run(cfg Config) error {
 	}
 	defer snippetStore.Close()
 
+	// Initialize session store for explore mode
+	sessionStore := session.NewStore()
+	defer sessionStore.Close()
+
+	// Initialize explore handler
+	exploreHandler := explore.NewHandler(sessionStore)
+
 	// Setup routes
 	mux := http.NewServeMux()
 
 	// API endpoints
 	mux.HandleFunc("GET /api/version", handleVersion)
 	mux.HandleFunc("POST /api/run", handleRun)
+	mux.HandleFunc("POST /api/run-explore", handleRunExplore(sessionStore))
 	mux.HandleFunc("POST /api/share", handleShare(snippetStore))
 	mux.HandleFunc("GET /api/s/{id}", handleGet(snippetStore))
+	mux.HandleFunc("GET /api/explore/{sessionID}/vars", exploreHandler.HandleVars)
+
+	// Explore routes - structexplorer iframe
+	mux.Handle("GET /explore/{sessionID}/", exploreHandler)
 
 	// SPA routes - serve index.html for /s/{id} paths
 	mux.HandleFunc("GET /s/{id}", handleSPA("index.html"))
@@ -112,6 +126,46 @@ func handleRun(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+type exploreResponse struct {
+	Output    string   `json:"output"`
+	Error     string   `json:"error,omitempty"`
+	Duration  int64    `json:"duration_ms"`
+	SessionID string   `json:"session_id,omitempty"`
+	Variables []string `json:"variables,omitempty"`
+}
+
+func handleRunExplore(sessions *session.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req runRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if strings.TrimSpace(req.Code) == "" {
+			http.Error(w, "code is required", http.StatusBadRequest)
+			return
+		}
+
+		result := sandbox.ExecuteWithExplore(r.Context(), req.Code, sandbox.DefaultConfig())
+
+		resp := exploreResponse{
+			Output:    result.Output,
+			Error:     result.Error,
+			Duration:  result.Duration,
+			Variables: result.Variables,
+		}
+
+		// Only create session if we have explorable state
+		if result.Package != nil && len(result.Variables) > 0 {
+			resp.SessionID = sessions.Save(result.Package, result.Variables)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}
 }
 
 type shareRequest struct {
