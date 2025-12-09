@@ -69,16 +69,19 @@ export class CodeEditor extends HTMLElement {
             style.id = 'code-editor-styles';
             style.textContent = `
                 code-editor {
-                    display: flex;
-                    flex: 1;
+                    display: grid;
                     min-height: 0;
+                    min-width: 0;
+                    overflow: hidden;
                 }
 
                 .ce-wrap {
-                    display: flex;
-                    flex: 1;
+                    display: grid;
                     position: relative;
                     background: var(--bg-base);
+                    min-height: 0;
+                    min-width: 0;
+                    overflow: hidden;
                 }
 
                 .ce-loading {

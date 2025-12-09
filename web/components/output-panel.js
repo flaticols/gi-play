@@ -27,14 +27,13 @@ export class OutputPanel extends HTMLElement {
             style.id = 'output-panel-styles';
             style.textContent = `
                 output-panel {
-                    display: flex;
-                    flex-direction: column;
-                    flex: 1;
+                    display: grid;
                     min-height: 0;
+                    min-width: 0;
+                    overflow: hidden;
                 }
 
                 .op-container {
-                    flex: 1;
                     display: flex;
                     flex-direction: column;
                     overflow: auto;
@@ -43,6 +42,7 @@ export class OutputPanel extends HTMLElement {
                     font-size: 13px;
                     line-height: 1.6;
                     background: var(--bg-base);
+                    min-height: 0;
                 }
 
                 .op-empty {

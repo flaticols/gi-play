@@ -47,19 +47,9 @@ class GiPlayground extends HTMLElement {
             </header>
 
             <main class="pg-main">
-                <section class="pg-pane">
-                    <div class="pg-pane-bar">
-                        <span class="pg-filename">main.go</span>
-                    </div>
-                    <code-editor id="editor"></code-editor>
-                </section>
+                <code-editor id="editor"></code-editor>
                 <div class="pg-gutter"></div>
-                <section class="pg-pane">
-                    <div class="pg-pane-bar">
-                        <span class="pg-filename">output</span>
-                    </div>
-                    <output-panel id="output"></output-panel>
-                </section>
+                <output-panel id="output"></output-panel>
             </main>
 
             <dialog id="share-dialog">
@@ -99,9 +89,10 @@ class GiPlayground extends HTMLElement {
         style.id = 'gi-playground-styles';
         style.textContent = `
             gi-playground {
-                display: flex;
-                flex-direction: column;
+                display: grid;
+                grid-template-rows: 48px 1fr;
                 height: 100vh;
+                overflow: hidden;
             }
 
             /* Header */
@@ -110,7 +101,6 @@ class GiPlayground extends HTMLElement {
                 align-items: center;
                 justify-content: space-between;
                 padding: 0 16px;
-                height: 48px;
                 background: var(--bg-surface);
                 border-bottom: 1px solid var(--border);
             }
@@ -196,36 +186,14 @@ class GiPlayground extends HTMLElement {
 
             /* Main layout */
             .pg-main {
-                display: flex;
-                flex: 1;
+                display: grid;
+                grid-template-columns: 1fr 1px 1fr;
                 min-height: 0;
-            }
-
-            .pg-pane {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                min-width: 0;
+                overflow: hidden;
             }
 
             .pg-gutter {
-                width: 1px;
                 background: var(--border);
-            }
-
-            .pg-pane-bar {
-                display: flex;
-                align-items: center;
-                height: 32px;
-                padding: 0 12px;
-                background: var(--bg-surface);
-                border-bottom: 1px solid var(--border);
-            }
-
-            .pg-filename {
-                font-family: var(--font-mono);
-                font-size: 12px;
-                color: var(--text-muted);
             }
 
             /* Dialog */
@@ -342,17 +310,12 @@ class GiPlayground extends HTMLElement {
             /* Responsive */
             @media (max-width: 768px) {
                 .pg-main {
-                    flex-direction: column;
+                    grid-template-columns: 1fr;
+                    grid-template-rows: 1fr 1px 1fr;
                 }
 
                 .pg-gutter {
                     width: 100%;
-                    height: 1px;
-                }
-
-                .pg-pane {
-                    flex: none;
-                    height: 50%;
                 }
 
                 .pg-btn kbd {
