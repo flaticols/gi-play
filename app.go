@@ -53,8 +53,9 @@ func run(cfg Config) error {
 	mux.HandleFunc("GET /api/s/{id}", handleGet(snippetStore))
 	mux.HandleFunc("GET /api/explore/{sessionID}/vars", exploreHandler.HandleVars)
 
-	// Explore routes - structexplorer iframe
+	// Explore routes - structexplorer
 	mux.Handle("GET /explore/{sessionID}/", exploreHandler)
+	mux.Handle("POST /explore/{sessionID}/", exploreHandler)
 
 	// SPA routes - serve index.html for /s/{id} paths
 	mux.HandleFunc("GET /s/{id}", handleSPA("index.html"))
