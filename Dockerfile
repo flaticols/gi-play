@@ -27,14 +27,9 @@ RUN adduser -D -u 1000 gi
 # Copy binary
 COPY --from=builder /app/gi-playground .
 
-# Create data directory
-RUN mkdir -p /data && chown gi:gi /data
-
 USER gi
 
 EXPOSE 8080
 
-VOLUME ["/data"]
-
 ENTRYPOINT ["./gi-playground"]
-CMD ["-addr", ":8080", "-db", "/data/snippets.db"]
+CMD ["-addr", ":8080", "-ttl", "24h"]

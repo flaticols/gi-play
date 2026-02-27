@@ -1,83 +1,94 @@
-// Package store provides key-value storage for code snippets.
+// Package store provides in-memory key-value storage for code snippets with TTL-based expiration.
 package store
 
 import (
 	"crypto/rand"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/oklog/ulid/v2"
-	bolt "go.etcd.io/bbolt"
 )
 
-var (
-	ErrNotFound = errors.New("snippet not found")
-	bucketName  = []byte("snippets")
-)
+var ErrNotFound = errors.New("snippet not found")
 
-// Store manages code snippet persistence.
+type entry struct {
+	code      string
+	expiresAt time.Time
+}
+
+// Store manages code snippet storage in memory with TTL-based expiration.
 type Store struct {
-	db *bolt.DB
+	mu   sync.RWMutex
+	data map[string]entry
+	ttl  time.Duration
+	done chan struct{}
 }
 
-// New creates a new Store with the given database path.
-func New(path string) (*Store, error) {
-	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1 * time.Second})
-	if err != nil {
-		return nil, err
+// New creates a new in-memory Store. Snippets expire after the given TTL.
+func New(ttl time.Duration) *Store {
+	s := &Store{
+		data: make(map[string]entry),
+		ttl:  ttl,
+		done: make(chan struct{}),
 	}
-
-	// Create bucket if not exists
-	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(bucketName)
-		return err
-	})
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	return &Store{db: db}, nil
+	go s.cleanup()
+	return s
 }
 
-// Close closes the database.
+// Close stops the background cleanup goroutine.
 func (s *Store) Close() error {
-	return s.db.Close()
+	close(s.done)
+	return nil
 }
 
 // Save stores a snippet and returns its ID.
 func (s *Store) Save(code string) (string, error) {
 	id := generateID()
 
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketName)
-		return b.Put([]byte(id), []byte(code))
-	})
-	if err != nil {
-		return "", err
+	s.mu.Lock()
+	s.data[id] = entry{
+		code:      code,
+		expiresAt: time.Now().Add(s.ttl),
 	}
+	s.mu.Unlock()
 
 	return id, nil
 }
 
-// Get retrieves a snippet by ID.
+// Get retrieves a snippet by ID. Returns ErrNotFound if expired or missing.
 func (s *Store) Get(id string) (string, error) {
-	var code []byte
+	s.mu.RLock()
+	e, ok := s.data[id]
+	s.mu.RUnlock()
 
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketName)
-		code = b.Get([]byte(id))
-		if code == nil {
-			return ErrNotFound
-		}
-		return nil
-	})
-	if err != nil {
-		return "", err
+	if !ok || time.Now().After(e.expiresAt) {
+		return "", ErrNotFound
 	}
+	return e.code, nil
+}
 
-	return string(code), nil
+// cleanup periodically removes expired entries.
+func (s *Store) cleanup() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-ticker.C:
+			s.mu.Lock()
+			now := time.Now()
+			for id, e := range s.data {
+				if now.After(e.expiresAt) {
+					delete(s.data, id)
+				}
+			}
+			s.mu.Unlock()
+		}
+	}
 }
 
 // generateID creates a ULID (lowercase for URL friendliness).

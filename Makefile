@@ -20,7 +20,7 @@ watch:
 	go tool air
 
 clean:
-	rm -f $(APP_NAME) snippets.db
+	rm -f $(APP_NAME)
 
 # Docker
 docker-build:
@@ -30,7 +30,6 @@ docker-run:
 	docker run -d \
 		--name $(CONTAINER_NAME) \
 		-p $(PORT):8080 \
-		-v gi-playground-data:/data \
 		$(IMAGE_NAME)
 
 docker-stop:
@@ -47,7 +46,6 @@ container-run:
 	container run -d \
 		--name $(CONTAINER_NAME) \
 		-p $(PORT):8080 \
-		-v gi-playground-data:/data \
 		$(IMAGE_NAME)
 
 container-stop:

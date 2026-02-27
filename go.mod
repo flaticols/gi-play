@@ -5,7 +5,6 @@ go 1.25.5
 require (
 	github.com/emicklei/gi v0.0.0-20251209155231-5fdb40de821f
 	github.com/oklog/ulid/v2 v2.1.1
-	go.etcd.io/bbolt v1.4.3
 )
 
 require (

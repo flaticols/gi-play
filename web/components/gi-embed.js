@@ -151,7 +151,20 @@ class GiEmbed extends HTMLElement {
     }
 
     async loadSnippet() {
-        // Support both /embed/{id} path and ?s={id} query param
+        // Priority 1: Code embedded directly in hash fragment
+        const hash = window.location.hash;
+        if (hash.startsWith('#code=')) {
+            try {
+                const encoded = hash.slice(6);
+                const code = await this.decodeCode(encoded);
+                this.editor.value = code;
+                return;
+            } catch (e) {
+                console.error('Failed to decode embedded code:', e);
+            }
+        }
+
+        // Priority 2: Snippet ID lookup
         const pathMatch = window.location.pathname.match(/^\/embed\/([a-z0-9]+)$/i);
         const params = new URLSearchParams(window.location.search);
         const id = pathMatch ? pathMatch[1] : params.get('s');
@@ -178,6 +191,33 @@ func main() {
     fmt.Println("Hello, gi!")
 }
 `;
+    }
+
+    async decodeCode(encoded) {
+        // base64url -> standard base64
+        let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+
+        const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const ds = new DecompressionStream('deflate-raw');
+        const writer = ds.writable.getWriter();
+        writer.write(bytes);
+        writer.close();
+
+        const reader = ds.readable.getReader();
+        const chunks = [];
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+        }
+        const decoded = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
+        let offset = 0;
+        for (const chunk of chunks) {
+            decoded.set(chunk, offset);
+            offset += chunk.length;
+        }
+        return new TextDecoder().decode(decoded);
     }
 
     async run() {

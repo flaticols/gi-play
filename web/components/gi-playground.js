@@ -450,8 +450,12 @@ class GiPlayground extends HTMLElement {
             const data = await res.json();
             this._shareId = data.id;
 
+            // Share link uses snippet ID (short URL)
             const url = `${window.location.origin}/s/${data.id}`;
-            const embedUrl = `${window.location.origin}/embed/${data.id}`;
+
+            // Embed uses code-in-hash (self-contained, no DB lookup needed)
+            const encoded = await GiPlayground.encodeCode(code);
+            const embedUrl = `${window.location.origin}/embed/#code=${encoded}`;
             const iframe = `<iframe src="${embedUrl}" width="100%" height="300" frameborder="0"></iframe>`;
 
             // Update URL persistently
@@ -473,6 +477,31 @@ class GiPlayground extends HTMLElement {
         } catch (e) {
             this.output.showMessage(`Failed to share: ${e.message}`);
         }
+    }
+
+    static async encodeCode(code) {
+        const cs = new CompressionStream('deflate-raw');
+        const writer = cs.writable.getWriter();
+        writer.write(new TextEncoder().encode(code));
+        writer.close();
+
+        const reader = cs.readable.getReader();
+        const chunks = [];
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+        }
+        const compressed = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
+        let offset = 0;
+        for (const chunk of chunks) {
+            compressed.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        // standard base64 -> base64url
+        let base64 = btoa(String.fromCharCode(...compressed));
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
 
     async copyInput(btn) {

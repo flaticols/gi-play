@@ -20,31 +20,42 @@ import (
 
 // Config holds application configuration.
 type Config struct {
-	Addr   string
-	DBPath string
+	Addr               string
+	SnippetTTL         time.Duration
+	CloudflareEndpoint string
+	CloudflareToken    string
 }
 
 // run starts the playground server with the given configuration.
 func run(cfg Config) error {
 	// Initialize store
-	snippetStore, err := store.New(cfg.DBPath)
-	if err != nil {
-		return err
-	}
+	snippetStore := store.New(cfg.SnippetTTL)
 	defer snippetStore.Close()
+
+	// Initialize executor
+	var executor sandbox.Executor
+	if cfg.CloudflareEndpoint != "" {
+		executor = sandbox.NewCloudflareExecutor(cfg.CloudflareEndpoint, cfg.CloudflareToken)
+		log.Println("Using Cloudflare Sandbox executor")
+	} else {
+		executor = sandbox.NewSubprocessExecutor()
+		log.Println("Using subprocess executor (isolated)")
+	}
 
 	// Setup routes
 	mux := http.NewServeMux()
 
 	// API endpoints
 	mux.HandleFunc("GET /api/version", handleVersion)
-	mux.HandleFunc("POST /api/run", handleRun)
+	mux.HandleFunc("POST /api/run", handleRun(executor))
 	mux.HandleFunc("POST /api/share", handleShare(snippetStore))
 	mux.HandleFunc("GET /api/s/{id}", handleGet(snippetStore))
 
 	// SPA routes - serve index.html for /s/{id} paths
 	mux.HandleFunc("GET /s/{id}", handleSPA("index.html"))
 	mux.HandleFunc("GET /embed/{id}", handleSPA("embed.html"))
+	// Bare /embed/ for code-in-hash embeds (no snippet ID needed)
+	mux.HandleFunc("GET /embed/", handleSPA("embed.html"))
 
 	// Static files
 	mux.Handle("/", http.FileServer(http.FS(web.FS())))
@@ -96,22 +107,24 @@ func handleVersion(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(versionResponse{GiVersion: version})
 }
 
-func handleRun(w http.ResponseWriter, r *http.Request) {
-	var req runRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
+func handleRun(exec sandbox.Executor) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req runRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if strings.TrimSpace(req.Code) == "" {
+			http.Error(w, "code is required", http.StatusBadRequest)
+			return
+		}
+
+		result := exec.Execute(r.Context(), req.Code, sandbox.DefaultConfig())
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
 	}
-
-	if strings.TrimSpace(req.Code) == "" {
-		http.Error(w, "code is required", http.StatusBadRequest)
-		return
-	}
-
-	result := sandbox.Execute(r.Context(), req.Code, sandbox.DefaultConfig())
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
 }
 
 type shareRequest struct {
