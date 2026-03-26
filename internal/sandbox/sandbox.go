@@ -96,7 +96,7 @@ func Execute(ctx context.Context, source string, cfg Config) Result {
 		}()
 
 		// Parse source
-		pkg, err := gi.ParseSource(source)
+		pkg, err := gi.Parse(source)
 		if err != nil {
 			done <- execResult{err: fmt.Errorf("parse error: %w", err)}
 			return
