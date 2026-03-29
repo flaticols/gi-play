@@ -1,6 +1,9 @@
 # gi Playground
 
-> **⚠️ This project is still in active development and is not yet ready for production use.**
+> [!IMPORTANT]
+> This project is still in active development and is not yet ready for production use.
+>
+> Try it at [giplay.flaticols.dev](https://giplay.flaticols.dev)
 
 Web-based Go interpreter playground using [emicklei/gi](https://github.com/emicklei/gi).
 
