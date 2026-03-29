@@ -1,5 +1,7 @@
 # gi Playground
 
+> **⚠️ This project is still in active development and is not yet ready for production use.**
+
 Web-based Go interpreter playground using [emicklei/gi](https://github.com/emicklei/gi).
 
 ## Quick Start
