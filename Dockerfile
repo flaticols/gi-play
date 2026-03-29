@@ -1,40 +1,35 @@
 # Build stage
-FROM golang:1.25.5-alpine3.23 AS builder
+FROM golang:1.26.1-alpine3.23 AS builder
 
 WORKDIR /app
 
-# Install git for go mod download
-RUN apk add --no-cache git
+RUN apk add --no-cache git gcc musl-dev
 
-# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source
 COPY . .
 
-# Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o gi-playground .
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o gi-playground .
 
-# Runtime stage
-FROM alpine:3.19
+# Runtime stage — Alpine + Go toolchain (gi needs `go` for package loading)
+FROM golang:1.26.1-alpine3.23
+
+RUN apk add --no-cache su-exec && \
+    adduser -D -u 1000 gi && \
+    mkdir -p /data /tmp
+
+COPY --from=builder /app/gi-playground /app/gi-playground
+COPY <<'EOF' /app/entrypoint.sh
+#!/bin/sh
+chown -R gi:gi /data
+exec su-exec gi ./gi-playground "$@"
+EOF
+
+RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app
-
-# Add non-root user
-RUN adduser -D -u 1000 gi
-
-# Copy binary
-COPY --from=builder /app/gi-playground .
-
-# Create data directory
-RUN mkdir -p /data && chown gi:gi /data
-
-USER gi
-
 EXPOSE 8080
 
-VOLUME ["/data"]
-
-ENTRYPOINT ["./gi-playground"]
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["-addr", ":8080", "-db", "/data/snippets.db"]

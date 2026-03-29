@@ -56,6 +56,16 @@ container-stop:
 container-logs:
 	container logs -f $(CONTAINER_NAME)
 
+# Fly.io
+fly-deploy:
+	fly deploy
+
+fly-logs:
+	fly logs
+
+fly-status:
+	fly status
+
 # Helpers
 test:
 	go test ./...

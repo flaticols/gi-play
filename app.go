@@ -13,10 +13,15 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/time/rate"
+
+	"github.com/flaticols/gi-play/internal/ratelimit"
 	"github.com/flaticols/gi-play/internal/sandbox"
 	"github.com/flaticols/gi-play/internal/store"
 	"github.com/flaticols/gi-play/web"
 )
+
+const maxCodeLines = 59
 
 // Config holds application configuration.
 type Config struct {
@@ -36,9 +41,12 @@ func run(cfg Config) error {
 	// Setup routes
 	mux := http.NewServeMux()
 
+	// Rate limiter: 1 run per 2 seconds sustained, burst of 5
+	runLimiter := ratelimit.New(rate.Every(2*time.Second), 5)
+
 	// API endpoints
 	mux.HandleFunc("GET /api/version", handleVersion)
-	mux.HandleFunc("POST /api/run", handleRun)
+	mux.HandleFunc("POST /api/run", runLimiter.Wrap(handleRun))
 	mux.HandleFunc("POST /api/share", handleShare(snippetStore))
 	mux.HandleFunc("GET /api/s/{id}", handleGet(snippetStore))
 
@@ -97,6 +105,8 @@ func handleVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRun(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64*1024) // 64KB max
+
 	var req runRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -108,10 +118,27 @@ func handleRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if lineCount(req.Code) > maxCodeLines {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(sandbox.Result{Error: "code exceeds 59 line limit"})
+		return
+	}
+
 	result := sandbox.Execute(r.Context(), req.Code, sandbox.DefaultConfig())
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+func lineCount(s string) int {
+	n := 1
+	for _, c := range s {
+		if c == '\n' {
+			n++
+		}
+	}
+	return n
 }
 
 type shareRequest struct {
@@ -124,6 +151,8 @@ type shareResponse struct {
 
 func handleShare(s *store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+
 		var req shareRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
