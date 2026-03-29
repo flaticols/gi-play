@@ -1,6 +1,6 @@
 # gi Playground
 
-> [!IMPORTANT]
+> [!WARNING]
 > ⚠️ This project is still in active development and is not yet ready for production use.
 >
 > Try it at [giplay.flaticols.dev](https://giplay.flaticols.dev)
